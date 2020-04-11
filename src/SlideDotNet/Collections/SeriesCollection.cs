@@ -30,7 +30,7 @@ namespace SlideDotNet.Collections
             foreach (var nextSdkChart in sdkCharts)
             {
                 Enum.TryParse(nextSdkChart.LocalName, true, out ChartType chartType);
-                var nextSdkChartSeriesCollection = nextSdkChart.ChildElements.Where(e => e.LocalName.Equals("ser"));
+                var nextSdkChartSeriesCollection = nextSdkChart.ChildElements.Where(e => e.LocalName.Equals("ser", StringComparison.Ordinal));
                 foreach (var sdkSeries in nextSdkChartSeriesCollection)
                 {
                     var series = new Series(chartType, sdkSeries, sdkChartPart);

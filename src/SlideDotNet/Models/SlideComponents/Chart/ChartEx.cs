@@ -54,7 +54,7 @@ namespace SlideDotNet.Models.SlideComponents.Chart
                     _chartTitle = TryGetTitle();
                 }
 
-                return _chartTitle ?? throw new SlideDotNetException(ExceptionMessages.NotTitle);
+                return _chartTitle ?? throw new NotSupportedException(ExceptionMessages.NotTitle);
             }
         }
 
@@ -93,8 +93,8 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             {
                 if (_categories.Value == null)
                 {
-                    var msg = ExceptionMessages.ChartCanNotHaveCategory.Replace("#0", Type.ToString());
-                    throw new RuntimeDefinedPropertyException(msg);
+                    var msg = ExceptionMessages.ChartCanNotHaveCategory.Replace("#0", Type.ToString(), StringComparison.Ordinal);
+                    throw new NotSupportedException(msg);
                 }
 
                 return _categories.Value;
@@ -126,7 +126,7 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             _sdkChartPart = (ChartPart)_shapeContext.SkdSlidePart.GetPartById(chartPartRef);
 
             _cChart = _sdkChartPart.ChartSpace.GetFirstChild<C.Chart>();
-            _sdkCharts = _cChart.PlotArea.Where(e => e.LocalName.EndsWith("Chart")).ToList();  // example: <c:barChart>, <c:lineChart>
+            _sdkCharts = _cChart.PlotArea.Where(e => e.LocalName.EndsWith("Chart", StringComparison.Ordinal)).ToList();  // example: <c:barChart>, <c:lineChart>
             _seriesCollection = new Lazy<SeriesCollection>(GetSeriesCollection);
             _categories = new Lazy<CategoryCollection>(TryGetCategories);
         }
@@ -203,7 +203,7 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             {
                 return null;
             }
-            var sdkChartSeries = _sdkCharts.First().ChildElements.First(e => e.LocalName.Equals("ser"));
+            var sdkChartSeries = _sdkCharts.First().ChildElements.First(e => e.LocalName.Equals("ser", StringComparison.Ordinal));
             return new CategoryCollection(sdkChartSeries);
         }
 

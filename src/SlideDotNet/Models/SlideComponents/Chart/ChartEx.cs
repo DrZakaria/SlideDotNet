@@ -7,6 +7,7 @@ using SlideDotNet.Collections;
 using SlideDotNet.Enums;
 using SlideDotNet.Exceptions;
 using SlideDotNet.Models.Settings;
+using SlideDotNet.Spreadsheet;
 using P = DocumentFormat.OpenXml.Presentation;
 using C = DocumentFormat.OpenXml.Drawing.Charts;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -27,9 +28,11 @@ namespace SlideDotNet.Models.SlideComponents.Chart
         private readonly IShapeContext _shapeContext;
         private readonly P.GraphicFrame _grFrame;
         private readonly Lazy<ChartType> _chartType;
+        private readonly Lazy<OpenXmlElement> _firstSeries;
         private C.Chart _cChart;
         private Lazy<SeriesCollection> _seriesCollection;
         private Lazy<CategoryCollection> _categories;
+        private readonly Lazy<LibraryCollection<double>> _xValues;
         private string _chartTitle;
         private ChartPart _sdkChartPart;
 
@@ -101,6 +104,21 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             }
         }
 
+        public bool HasXValues => _xValues.Value != null;
+
+        public LibraryCollection<double> XValues
+        {
+            get
+            {
+                if (_xValues.Value == null)
+                {
+                    throw new NotSupportedException(ExceptionMessages.NotXValues);
+                }
+
+                return _xValues.Value;
+            }
+        }
+
         #endregion Properties
 
         #region Constructors
@@ -113,6 +131,8 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             _grFrame = grFrame ?? throw new ArgumentNullException(nameof(grFrame));
             _shapeContext = shapeContext ?? throw new ArgumentNullException(nameof(shapeContext));
             _chartType = new Lazy<ChartType>(GetChartType);
+            _firstSeries = new Lazy<OpenXmlElement>(GetFirstSeries);
+            _xValues = new Lazy<LibraryCollection<double>>(TryGetXValues);
             Init(); //TODO: convert to lazy loading
         }
 
@@ -143,6 +163,11 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             return chartType;
         }
 
+        private SeriesCollection GetSeriesCollection()
+        {
+            return new SeriesCollection(_sdkCharts, _sdkChartPart);
+        }
+
         private string TryGetTitle()
         {
             var title = _cChart.Title;
@@ -152,7 +177,7 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             }
 
             var xmlChartText = title.ChartText;
-            var staticAvailable = TryGetStatic(xmlChartText, out var staticTitle);
+            var staticAvailable = TryGetStaticTitle(xmlChartText, out var staticTitle);
             if (staticAvailable)
             {
                 return staticTitle;
@@ -173,7 +198,7 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             return null;
         }
 
-        private bool TryGetStatic(C.ChartText chartText, out string staticTitle)
+        private bool TryGetStaticTitle(C.ChartText chartText, out string staticTitle)
         {
             staticTitle = null;
             if (Type == ChartType.Combination)
@@ -192,19 +217,31 @@ namespace SlideDotNet.Models.SlideComponents.Chart
             return false;
         }
 
-        private SeriesCollection GetSeriesCollection()
-        {
-            return new SeriesCollection(_sdkCharts, _sdkChartPart);
-        }
-
         private CategoryCollection TryGetCategories()
         {
             if (Type == ChartType.BubbleChart || Type == ChartType.ScatterChart)
             {
                 return null;
             }
-            var sdkChartSeries = _sdkCharts.First().ChildElements.First(e => e.LocalName.Equals("ser", StringComparison.Ordinal));
-            return new CategoryCollection(sdkChartSeries);
+            
+            return new CategoryCollection(_firstSeries.Value);
+        }
+
+        private LibraryCollection<double> TryGetXValues()
+        {
+            var sdkXValues = _firstSeries.Value?.GetFirstChild<C.XValues>();
+            if (sdkXValues == null)
+            {
+                return null;
+            }
+            var points = PointValueParser.FromNumRef(sdkXValues.NumberReference, _sdkChartPart.EmbeddedPackagePart);
+
+            return new LibraryCollection<double>(points);
+        }
+
+        private OpenXmlElement GetFirstSeries()
+        {
+            return _sdkCharts.First().ChildElements.FirstOrDefault(e => e.LocalName.Equals("ser", StringComparison.Ordinal));
         }
 
         #endregion

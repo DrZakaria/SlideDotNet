@@ -12,6 +12,7 @@ namespace SlideDotNet.Spreadsheet
     /// <summary>
     /// Represents a series value point parser.
     /// </summary>
+    /// TODO: convert into interface
     public class PointValueParser
     {
         public static IList<double> FromFormula(C.Formula formula, EmbeddedPackagePart embeddedPackagePart)
@@ -45,6 +46,8 @@ namespace SlideDotNet.Spreadsheet
 
         public static IList<double> FromCache(C.NumberingCache numberingCache)
         {
+            Check.NotNull(numberingCache, nameof(numberingCache));
+
             var sdkNumericValues = numberingCache.Descendants<C.NumericValue>();
             var pointValues = new List<double>(sdkNumericValues.Count());
             foreach (var numericValue in sdkNumericValues)
@@ -54,6 +57,17 @@ namespace SlideDotNet.Spreadsheet
             }
 
             return pointValues;
+        }
+
+        public static IList<double> FromNumRef(C.NumberReference numRef, EmbeddedPackagePart xlsxPackagePart)
+        {
+            var numberingCache = numRef.NumberingCache;
+            if (numberingCache != null)
+            {
+                return FromCache(numberingCache).ToList(); //TODO: remove ToList()
+            }
+
+            return FromFormula(numRef.Formula, xlsxPackagePart).ToList(); //TODO: remove ToList()
         }
     }
 }
